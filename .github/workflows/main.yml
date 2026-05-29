@@ -19,6 +19,9 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Build React app
+      run: npm run build
+
     - name: Deploy to EC2 with Git
       env:
         EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -52,11 +55,11 @@ jobs:
           cd REACT-EC2-DDEPLOYMENT
           npm install
 
-          # Restart app using PM2 (persistent)
+          # Build the React app (already done locally, but just in case)
+          npm run build
+
+          # Start serving the React app with PM2
           pm2 stop REACT-EC2-DDEPLOYMENT || true
-          pm2 start server.js --name REACT-EC2-DDEPLOYMENT
+          pm2 start "serve -s build -l 3000" --name REACT-EC2-DDEPLOYMENT
           pm2 save
         EOF
-
-
-
