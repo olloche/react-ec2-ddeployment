@@ -31,6 +31,9 @@ jobs:
         echo "$EC2_SSH_KEY" > key.pem
         chmod 600 key.pem
 
+        # Check memory before npm install
+        free -m
+
         ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
           # Install Node.js and npm if missing
           if ! command -v npm &> /dev/null
@@ -54,11 +57,8 @@ jobs:
 
           cd react-ec2-ddeployment
 
-          # Ensure react-scripts is installed
-          if ! command -v react-scripts &> /dev/null
-          then
-            npm install react-scripts
-          fi
+          # Ensure react-scripts is in package.json and installed
+          # (no manual install here; it should come with dependencies)
 
           # Install dependencies again to ensure all packages are correct
           npm install
@@ -66,7 +66,7 @@ jobs:
           # Build the React app
           npm run build
 
-          # Start serving the React app with PM2
+          # Start serving the React app with PM2 (use exact name)
           pm2 stop react-ec2-ddeployment || true
           pm2 start "serve -s build -l 3000" --name react-ec2-ddeployment
           pm2 save
