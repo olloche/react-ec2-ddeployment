@@ -16,10 +16,9 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 20.x
-        cache: 'npm'
     
     - name: Install Dependencies
-      run: npm ci --omit=dev
+      run: npm install
     
     - name: Build React App
       run: npm run build
@@ -67,3 +66,40 @@ jobs:
           # Verify directory contents
           echo "=== Verifying Project Structure ==="
           ls -la
+          
+          # Install production dependencies
+          echo "=== Installing Dependencies ==="
+          npm install --omit=dev
+          
+          # Build the React app
+          echo "=== Building React App ==="
+          npm run build
+          
+          # Verify build was successful
+          if [ ! -d "build" ]; then
+            echo "ERROR: Build directory not created!"
+            exit 1
+          fi
+          
+          # Stop existing PM2 process
+          echo "=== Stopping Previous Instance ==="
+          pm2 stop react-app || true
+          pm2 delete react-app || true
+          
+          # Start application with PM2
+          echo "=== Starting Application ==="
+          pm2 start "serve -s build -l 3000" --name react-app
+          pm2 save
+          pm2 startup || true
+          
+          # Verify application is running
+          echo "=== Application Status ==="
+          pm2 list
+          
+          echo "=== Deployment Complete ==="
+          echo "Application running on port 3000"
+        EOF
+        
+        # Cleanup SSH key
+        rm -f key.pem
+        echo "✅ Deployment successful!"
