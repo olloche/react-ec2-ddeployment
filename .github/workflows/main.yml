@@ -7,22 +7,24 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - uses: actions/checkout@v3
-
-    - name: Use Node.js
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 20.x
-
-    - name: Install dependencies
-      run: npm ci --only=production  # Only install production dependencies to save memory
-
-    - name: Build React app
+        cache: 'npm'
+    
+    - name: Install Dependencies
+      run: npm ci --omit=dev
+    
+    - name: Build React App
       run: npm run build
-
-    - name: Deploy to EC2 with Git
+    
+    - name: Deploy to EC2
       env:
         EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         EC2_USER: ${{ secrets.EC2_USER }}
@@ -30,44 +32,75 @@ jobs:
       run: |
         echo "$EC2_SSH_KEY" > key.pem
         chmod 600 key.pem
-
-        # Check memory before npm install
-        free -m
-
+        
         ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          set -e
+          
+          echo "=== Starting Deployment ==="
+          
           # Install Node.js and npm if missing
-          if ! command -v npm &> /dev/null
-          then
+          if ! command -v npm &> /dev/null; then
+            echo "=== Installing Node.js and npm ==="
             sudo apt update
             sudo apt install -y nodejs npm
           fi
-
+          
           # Install PM2 globally if missing
-          if ! command -v pm2 &> /dev/null
-          then
+          if ! command -v pm2 &> /dev/null; then
+            echo "=== Installing PM2 ==="
             sudo npm install -g pm2
           fi
-
-          # Clone or update the react-ec2-ddeployment repo
-          if [ ! -d "react-ec2-ddeployment" ]; then
-            git clone https://github.com/ike3232/react-ec2-ddeployment.git
+          
+          # Clone or update the repository
+          echo "=== Managing Repository ==="
+          if [ ! -d "$HOME/react-ec2-deployment" ]; then
+            echo "Cloning repository..."
+            git clone https://github.com/ike3232/react-ec2-deployment.git $HOME/react-ec2-deployment
           else
-            cd react-ec2-ddeployment && git pull origin main
+            echo "Updating repository..."
+            cd $HOME/react-ec2-deployment && git pull origin main
           fi
-
-          # Verify contents before moving on
+          
+          # Navigate to project directory
+          cd $HOME/react-ec2-deployment
+          
+          # Verify directory contents
+          echo "=== Verifying Project Structure ==="
           ls -la
-
-          cd react-ec2-ddeployment
-
-          # Install production dependencies again (using ci)
-          npm ci --only=production
-
+          
+          # Install production dependencies
+          echo "=== Installing Dependencies ==="
+          npm ci --omit=dev
+          
           # Build the React app
+          echo "=== Building React App ==="
           npm run build
-
-          # Start serving the React app with PM2 (use exact name)
-          pm2 stop react-ec2-ddeployment || true
-          pm2 start "serve -s build -l 3000" --name react-ec2-ddeployment
+          
+          # Verify build was successful
+          if [ ! -d "build" ]; then
+            echo "ERROR: Build directory not created!"
+            exit 1
+          fi
+          
+          # Stop existing PM2 process
+          echo "=== Stopping Previous Instance ==="
+          pm2 stop react-app || true
+          pm2 delete react-app || true
+          
+          # Start application with PM2
+          echo "=== Starting Application ==="
+          pm2 start "serve -s build -l 3000" --name react-app
           pm2 save
+          pm2 startup || true
+          
+          # Verify application is running
+          echo "=== Application Status ==="
+          pm2 list
+          
+          echo "=== Deployment Complete ==="
+          echo "Application running on port 3000"
         EOF
+        
+        # Cleanup SSH key
+        rm -f key.pem
+        echo "✅ Deployment successful!"
