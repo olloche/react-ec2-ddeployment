@@ -119,3 +119,4 @@ First, you have to Public IP address or ec2 instance as An R3cord of your domain
   ```
 ### Step 10: Conclusion
 Deploying a ReactJS application on an AWS EC2 instance requires careful configuration and setup. By following these steps, you can successfully launch your application and serve it using Nginx, ensuring a seamless user experience. this work
+fg
