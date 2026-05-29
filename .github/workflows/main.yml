@@ -1,90 +1,65 @@
 name: Node.js CI & Deploy
+
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20.x
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20.x
 
-      - name: Install Dependencies
-        run: npm install
+    - name: Install dependencies
+      run: npm install
 
-      - name: Build React App
-        run: npm run build
+    - name: Build React app
+      run: npm run build
 
-      - name: Deploy to EC2
-        env:
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          echo "$EC2_SSH_KEY" | tr -d '\r' > key.pem
-          chmod 600 key.pem
+    - name: Deploy to EC2 with Git
+      env:
+        EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        EC2_USER: ${{ secrets.EC2_USER }}
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+      run: |
+        echo "$EC2_SSH_KEY" > key.pem
+        chmod 600 key.pem
 
-          ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST bash -s << 'EOF'
-          set -e
-
-          echo "=== Starting Deployment ==="
-
-          if ! command -v npm &> /dev/null; then
-            echo "=== Installing Node.js and npm ==="
+        ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          # Install Node.js and npm if missing
+          if ! command -v npm &> /dev/null
+          then
             sudo apt update
             sudo apt install -y nodejs npm
           fi
 
-          if ! command -v pm2 &> /dev/null; then
-            echo "=== Installing PM2 ==="
+          # Install PM2 globally if missing
+          if ! command -v pm2 &> /dev/null
+          then
             sudo npm install -g pm2
           fi
 
-          echo "=== Managing Repository ==="
-          if [ ! -d "$HOME/react-ec2-deployment" ]; then
-            echo "Cloning repository..."
-            git clone https://github.com/ike3232/react-ec2-deployment.git $HOME/react-ec2-deployment
+          # Clone or update the ract-ec2-ddeployment repo
+          if [ ! -d "react-ec2-ddeployment" ]; then
+            git clone https://github.com/ike3232/react-ec2-ddeployment.git
           else
-            echo "Updating repository..."
-            cd $HOME/react-ec2-deployment && git pull origin main
+            cd react-ec2-ddeployment && git pull origin main
           fi
 
-          cd $HOME/react-ec2-deployment
+          cd react-ec2-ddeployment
+          npm install
 
-          echo "=== Verifying Project Structure ==="
-          ls -la
-
-          echo "=== Installing Dependencies ==="
-          npm install --omit=dev
-
-          echo "=== Building React App ==="
+          # Build the React app (already done locally, but just in case)
           npm run build
 
-          if [ ! -d "build" ]; then
-            echo "ERROR: Build directory not created!"
-            exit 1
-          fi
-
-          echo "=== Stopping Previous Instance ==="
-          pm2 stop react-app || true
-          pm2 delete react-app || true
-
-          echo "=== Starting Application ==="
-          pm2 start "serve -s build -l 3000" --name react-app
+          # Start serving the React app with PM2
+          pm2 stop react-ec2-ddeployment || true
+          pm2 start "serve -s build -l 3000" --name react-ec2-ddeployment
           pm2 save
-          pm2 startup || true
-
-          echo "=== Application Status ==="
-          pm2 list
-
-          echo "=== Deployment Complete ==="
-          echo "Application running on port 3000"
-          EOF
-
-          rm -f key.pem
-          echo "✅ Deployment successful!"
+        EOF
