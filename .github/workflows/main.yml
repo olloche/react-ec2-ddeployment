@@ -47,7 +47,7 @@ jobs:
 
           # Clone or update the REACT-EC2-DDEPLOYMENT repo
           if [ ! -d "REACT-EC2-DDEPLOYMENT" ]; then
-            git clone https://github.com/ike3232/REACT-EC2-DDEPLOYMENT.git
+            git clone https://github.com/ike3232/react-ec2-ddeployment.git
           else
             cd REACT-EC2-DDEPLOYMENT && git pull origin main
           fi
