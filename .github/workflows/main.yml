@@ -45,21 +45,29 @@ jobs:
             sudo npm install -g pm2
           fi
 
-          # Clone or update the REACT-EC2-DDEPLOYMENT repo
-          if [ ! -d "REACT-EC2-DDEPLOYMENT" ]; then
+          # Clone or update the react-ec2-ddeployment repo
+          if [ ! -d "react-ec2-ddeployment" ]; then
             git clone https://github.com/ike3232/react-ec2-ddeployment.git
           else
-            cd REACT-EC2-DDEPLOYMENT && git pull origin main
+            cd react-ec2-ddeployment && git pull origin main
           fi
 
-          cd REACT-EC2-DDEPLOYMENT
+          cd react-ec2-ddeployment
+
+          # Ensure react-scripts is installed
+          if ! command -v react-scripts &> /dev/null
+          then
+            npm install react-scripts
+          fi
+
+          # Install dependencies again to ensure all packages are correct
           npm install
 
-          # Build the React app (already done locally, but just in case)
+          # Build the React app
           npm run build
 
           # Start serving the React app with PM2
-          pm2 stop REACT-EC2-DDEPLOYMENT || true
-          pm2 start "serve -s build -l 3000" --name REACT-EC2-DDEPLOYMENT
+          pm2 stop react-ec2-ddeployment || true
+          pm2 start "serve -s build -l 3000" --name react-ec2-ddeployment
           pm2 save
         EOF
