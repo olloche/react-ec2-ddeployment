@@ -28,7 +28,6 @@ jobs:
         EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         EC2_USER: ${{ secrets.EC2_USER }}
         EC2_HOST: ${{ secrets.EC2_HOST }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "$EC2_SSH_KEY" > key.pem
         chmod 600 key.pem
@@ -51,11 +50,11 @@ jobs:
             sudo npm install -g pm2
           fi
           
-          # Clone or update the repository with authentication
+          # Clone or update the repository (PUBLIC)
           echo "=== Managing Repository ==="
           if [ ! -d "$HOME/react-ec2-deployment" ]; then
             echo "Cloning repository..."
-            git clone https://ike3232:$GITHUB_TOKEN@github.com/ike3232/react-ec2-deployment.git $HOME/react-ec2-deployment
+            git clone https://github.com/ike3232/react-ec2-deployment.git $HOME/react-ec2-deployment
           else
             echo "Updating repository..."
             cd $HOME/react-ec2-deployment && git pull origin main
