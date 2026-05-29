@@ -1,28 +1,21 @@
 name: Node.js CI & Deploy
-
 on:
   push:
     branches: [ "main" ]
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
-
     - name: Use Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 20.x
-
     - name: Install dependencies
       run: npm install
-
     - name: Build React app
       run: npm run build
-
-    - name: Deploy to EC2 with Git
+    - name: Deploy to EC2
       env:
         EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         EC2_USER: ${{ secrets.EC2_USER }}
@@ -30,36 +23,20 @@ jobs:
       run: |
         echo "$EC2_SSH_KEY" > key.pem
         chmod 600 key.pem
-
+        # Copy the build folder built above to EC2
+        scp -o StrictHostKeyChecking=no -i key.pem -r build $EC2_USER@$EC2_HOST:~/react-ec2-ddeployment/
         ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
-          # Install Node.js and npm if missing
-          if ! command -v npm &> /dev/null
-          then
-            sudo apt update
-            sudo apt install -y nodejs npm
-          fi
-
-          # Install PM2 globally if missing
-          if ! command -v pm2 &> /dev/null
-          then
-            sudo npm install -g pm2
-          fi
-
-          # Clone or update the ract-ec2-ddeployment repo
+          # Install serve and PM2 if missing
+          if ! command -v serve &> /dev/null; then sudo npm install -g serve; fi
+          if ! command -v pm2 &> /dev/null; then sudo npm install -g pm2; fi
+          # Clone or update the repo
           if [ ! -d "react-ec2-ddeployment" ]; then
             git clone https://github.com/ike3232/react-ec2-ddeployment.git
           else
             cd react-ec2-ddeployment && git pull origin main
           fi
-
-          cd react-ec2-ddeployment
-          npm install
-
-          # Build the React app (already done locally, but just in case)
-          npm run build
-
-          # Start serving the React app with PM2
-          pm2 stop react-ec2-ddeployment || true
-          pm2 start "serve -s build -l 3000" --name react-ec2-ddeployment
+          # Restart app from the copied build folder
+          pm2 delete react-ec2-ddeployment 2>/dev/null || true
+          pm2 start "serve -s ~/react-ec2-ddeployment/build -l 3000" --name react-ec2-ddeployment
           pm2 save
         EOF
