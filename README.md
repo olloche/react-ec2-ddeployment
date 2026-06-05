@@ -49,7 +49,6 @@ sudo apt install nginx -y
 - For Private Repository:
   ```bash
   git clone <YOUR-GIT-Repo>
-  sdf
   ```
 
 it will ask you for your GitHub username and password. You can use a Personal Access Token instead of a password.  
