@@ -32,8 +32,11 @@ jobs:
         echo "$SSH_KEY" > key.pem
         chmod 600 key.pem
         
+        # Create app directory on EC2
+        ssh -o StrictHostKeyChecking=no -i key.pem $USER@$HOST "mkdir -p ~/app"
+        
         # Copy build folder to EC2
-        scp -o StrictHostKeyChecking=no -i key.pem -r build $USER@$HOST:~/app/build
+        scp -o StrictHostKeyChecking=no -i key.pem -r build $USER@$HOST:~/app/
         
         # SSH into EC2 and start app
         ssh -o StrictHostKeyChecking=no -i key.pem $USER@$HOST << 'ENDSSH'
@@ -43,6 +46,7 @@ jobs:
         pm2 delete react-app 2>/dev/null || true
         pm2 start "serve -s build -l 3000" --name react-app
         pm2 save
+        pm2 startup
         pm2 list
         ENDSSH
         
