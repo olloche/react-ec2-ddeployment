@@ -1,42 +1,50 @@
-name: Node.js CI & Deploy
+name: Deploy React to EC2
+
 on:
   push:
     branches: [ "main" ]
+
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js
+    - name: Checkout Code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 20.x
-    - name: Install dependencies
+    
+    - name: Install Dependencies
       run: npm install
-    - name: Build React app
+    
+    - name: Build App
       run: npm run build
+    
     - name: Deploy to EC2
       env:
-        EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-        EC2_USER: ${{ secrets.EC2_USER }}
-        EC2_HOST: ${{ secrets.EC2_HOST }}
+        SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        USER: ${{ secrets.EC2_USER }}
+        HOST: ${{ secrets.EC2_HOST }}
       run: |
-        echo "$EC2_SSH_KEY" > key.pem
+        echo "$SSH_KEY" > key.pem
         chmod 600 key.pem
-        # Copy the build folder built above to EC2
-        scp -o StrictHostKeyChecking=no -i key.pem -r build $EC2_USER@$EC2_HOST:~/react-ec2-ddeployment/
-        ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
-          # Install serve and PM2 if missing
-          if ! command -v serve &> /dev/null; then sudo npm install -g serve; fi
-          if ! command -v pm2 &> /dev/null; then sudo npm install -g pm2; fi
-          # Clone or update the repo
-          if [ ! -d "react-ec2-ddeployment" ]; then
-            git clone https://github.com/ike3232/react-ec2-ddeployment.git
-          else
-            cd react-ec2-ddeployment && git pull origin main
-          fi
-          # Restart app from the copied build folder
-          pm2 delete react-ec2-ddeployment 2>/dev/null || true
-          pm2 start "serve -s ~/react-ec2-ddeployment/build -l 3000" --name react-ec2-ddeployment
-          pm2 save
-        EOF
+        
+        # Copy build folder to EC2
+        scp -o StrictHostKeyChecking=no -i key.pem -r build $USER@$HOST:~/app/build
+        
+        # SSH into EC2 and start app
+        ssh -o StrictHostKeyChecking=no -i key.pem $USER@$HOST << 'ENDSSH'
+        cd ~/app
+        npm install -g pm2 serve
+        pm2 stop react-app 2>/dev/null || true
+        pm2 delete react-app 2>/dev/null || true
+        pm2 start "serve -s build -l 3000" --name react-app
+        pm2 save
+        pm2 list
+        ENDSSH
+        
+        rm key.pem
+        echo "✅ Deployment Complete!"
