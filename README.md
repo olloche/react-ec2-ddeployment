@@ -92,7 +92,7 @@ sudo rm -rf default
       }
   }
   ```
-  
+  typo
 - Activate the configuration using the following command:
 
   ```bash
