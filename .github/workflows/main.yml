@@ -40,15 +40,25 @@ jobs:
         
         # SSH into EC2 and start app
         ssh -o StrictHostKeyChecking=no -i key.pem $USER@$HOST << 'ENDSSH'
+        echo "=== Installing Node.js ==="
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        
+        echo "=== Installing PM2 and Serve ==="
+        sudo npm install -g pm2 serve
+        
+        echo "=== Starting Application ==="
         cd ~/app
-        npm install -g pm2 serve
         pm2 stop react-app 2>/dev/null || true
         pm2 delete react-app 2>/dev/null || true
         pm2 start "serve -s build -l 3000" --name react-app
         pm2 save
         pm2 startup
         pm2 list
+        
+        echo "=== Deployment Complete ==="
+        echo "App running on port 3000"
         ENDSSH
         
         rm key.pem
-        echo "✅ Deployment Complete!"
+        echo "✅ Deployment Successful!"
